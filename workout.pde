@@ -26,14 +26,15 @@ void setup()
 {
   size(500, 500);
   String lines[]=loadStrings("workout.txt");
-  numberOfExercises=lines.length;
+  numberOfExercises=lines.length-1;
+  println(numberOfExercises);
   exercises=new String[numberOfExercises];
   timings=new int[numberOfExercises];
-  for (int i=0;i<lines.length;i++)
+  for (int i=1;i<lines.length;i++)
   {
-    exercises[i]=split(lines[i], ',')[0];
-    timings[i]=int(trim(split(lines[i], ',')[1]));
-    println(exercises[i]+" "+timings[i]);
+    exercises[i-1]=split(lines[i], ',')[0];
+    timings[i-1]=int(trim(split(lines[i], ',')[1]));
+    println(exercises[i-1]+" "+timings[i-1]);
   }
   thread("updateImage");
   font=loadFont("Kefa-Regular-48.vlw");
@@ -60,13 +61,13 @@ void draw()
     drawClock(count, leadIn);
   else
     drawClock(count, timings[completeExercises]);
-  
-  if(img!=null)
+
+  if (img!=null)
   {
     image(img, 0, 0);
     image(img, width-img.width, 0);
     image(img, 0, height-img.height);
-    image(img, width-img.width, height-img.height);    
+    image(img, width-img.width, height-img.height);
   }
 
 
@@ -74,8 +75,8 @@ void draw()
   {
     seconds++;
     count--;
-    if(seconds%5==0)  //update the image every five seconds
-        thread("updateImage");
+    if (seconds%5==0)  //update the image every five seconds
+      thread("updateImage");
     if (mode=="lead-in")
     {
       if (count==0)
@@ -87,8 +88,8 @@ void draw()
           count=timings[completeExercises];
         }
       }
-        else if (count<=3)
-          click();
+      else if (count<=3)
+        click();
     }
     else if (mode=="period")
     {
@@ -97,7 +98,7 @@ void draw()
         mode="lead-in";
         count=leadIn; 
         completeExercises++;
-        if(completeExercises<numberOfExercises) //get image of the next exercise
+        if (completeExercises<numberOfExercises) //get image of the next exercise
         {
           stopWhistle();
           thread("updateImage");
@@ -107,7 +108,7 @@ void draw()
         click();
     }
   }
-  
+
   if (completeExercises==numberOfExercises)
   {
     endWhistle();
@@ -156,18 +157,21 @@ void updateImage()
   img=randomGoogleImage(exercises[completeExercises]);
 }
 
+//This code is based on Jeff Thompson's Google Image Search URL code, with some fixes for the
+//html parsing.  
+//Check out the original here:  https://github.com/jeffThompson/ProcessingTeachingSketches/tree/master/AdvancedTopics/GetGoogleImageSearchURLs
 PImage randomGoogleImage(String searchTerm)
 {
-int numSearches = 1;                 // how many searches to do (limited by Google to 20 images each) 
-String fileSize = "10mp";             // specify file size in mexapixels - S/M/L not figured out yet :)
-boolean saveImages = true;            // save the resulting images?
+  int numSearches = 1;                 // how many searches to do (limited by Google to 20 images each) 
+  String fileSize = "10mp";             // specify file size in mexapixels - S/M/L not figured out yet :)
+  boolean saveImages = true;            // save the resulting images?
 
-String source = null;                 // string to save raw HTML source code
-String[] imageLinks = new String[0];  // array to save URLs to - written to file at the end
-int offset = 0;                       // we can only 20 results at a time - increment to get total # of searches
-int imgCount = 0;                     // count saved images for creating filenames
-String outputTerm;
-PImage img=null;
+  String source = null;                 // string to save raw HTML source code
+  String[] imageLinks = new String[0];  // array to save URLs to - written to file at the end
+  int offset = 0;                       // we can only 20 results at a time - increment to get total # of searches
+  int imgCount = 0;                     // count saved images for creating filenames
+  String outputTerm;
+  PImage img=null;
 
   // format spaces in URL to avoid problems; convert to _ for saving
   outputTerm = searchTerm.replaceAll(" ", "_");
@@ -176,7 +180,7 @@ PImage img=null;
   // run search as many times as specified
   println("Retreiving image links (" + fileSize + ")...\n");
   for (int search=0; search<numSearches; search++) {
-    
+
     // let us know where we're at in the process
     print("  " + ((search+1)*20) + " / " + (numSearches*20) + ":");
 
@@ -213,7 +217,7 @@ PImage img=null;
       // built partially from: http://www.mkyong.com/regular-expressions/how-to-validate-image-file-extension-with-regular-expression
       String[][] m = matchAll(source, "<img[^>]+src\\s*=\\s*['\"]([^'\"]+)['\"][^>]*>");    // (?i) means case-insensitive
       if (m != null) {                                                                          // did we find a match?
-        for (int i=1; i<m.length; i++) {                                                        // iterate all results of the match
+        for (int i=0; i<m.length; i++) {                                                        // iterate all results of the match
           imageLinks = append(imageLinks, m[i][1]);                                             // add links to the array**
         }
       }
@@ -223,40 +227,20 @@ PImage img=null;
 
     // ** here we get the 2nd item from each match - this is our 'group' containing just the file URL and extension
 
-    // update offset by 20 (limit imposed by Google)
+      // update offset by 20 (limit imposed by Google)
     offset += 20;
   }
 
-  // save the resulting URLs to a file (easier to see and save)
-  println("\nWriting URLs to file...");
-  saveStrings("urlLists/" + searchTerm + "_URLs.txt", imageLinks);
+  String link=imageLinks[(int)random(imageLinks.length)];
 
-    String link=imageLinks[(int)random(imageLinks.length)];
+  // run in a 'try' in case we can't connect to an image
+  try {
+    img = loadImage(link, "jpeg");
+  }
+  catch (Exception e) {
+    println("    error downloading image, skipping...\n");    // likely a NullPointerException
+  }
 
-      // run in a 'try' in case we can't connect to an image
-      try {
-
-        // get file's extension - format new filename for saving (use name with '_' instead of '%20'
-        String extension = link.substring(link.lastIndexOf('.'), link.length()).toLowerCase();
-        if (extension.equals("jpeg")) {        // normalize jpg extension
-          extension = "jpg";
-        }
-        else if (extension.equals("tif")) {    // do the same for the unlikely case of a tiff file
-          extension = "tiff";
-        }
-        String outputFilename = outputTerm + "_" + nf(imgCount, 5) + extension;
-        println("  " + imgCount + ":\t" + outputFilename);
-
-        // load and save!
-        img = loadImage(link, "jpeg");
-        img.save(sketchPath("") + outputTerm + "/" + outputFilename);
-        imgCount++;
-      }
-      catch (Exception e) {
-        println("    error downloading image, skipping...\n");    // likely a NullPointerException
-      }
-      
-    return img;
+  return img;
 }
-
 
