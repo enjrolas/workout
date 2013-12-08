@@ -7,7 +7,7 @@ pause in between each exercise.
 
 For fun, the program will pull in images of the exercises based on
 random google image search results.  It'll load a new image every five
-seconds.  
+seconds.  Based on my randomGoogleImage function from [here](https://raw.github.com/enjrolas/processingGlory/master/randomImageDisplay.pde)
 
 The workout and timings that ship with the code are based on a
 seven-minute workout app that my friend [Bilal](http://bilalghalib.com/) introduced me to.  I
