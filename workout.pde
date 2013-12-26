@@ -36,7 +36,7 @@ void setup()
     timings[i-1]=int(trim(split(lines[i], ',')[1]));
     println(exercises[i-1]+" "+timings[i-1]);
   }
-  thread("updateImage");
+  thread("updateImage");  //run this in a thread so we're not waiting around all day
   font=loadFont("Kefa-Regular-48.vlw");
   // we pass this to Minim so that it can load files from the data directory
   minim = new Minim(this);
