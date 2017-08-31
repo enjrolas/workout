@@ -1,4 +1,7 @@
-
+//7-minute workout program with customizeable workout and fancy google images
+//if you're in processing 3.x, you'll need to go to sketch->import library->add library and add the 'minim' library before it will run
+//if you're in processing 2.x, it should just run out of the box
+//if you're human, you should ask Ben Fry and Casey Reas why they stopped including an audio library by default
 import ddf.minim.*;
 import java.net.HttpURLConnection;    // required for HTML download
 import java.net.URL;                  // ditto, etc...
@@ -7,6 +10,8 @@ import java.net.URLEncoder;
 import java.io.InputStreamReader;     // used to get our raw HTML source
 import java.io.File;
 PImage img=null;
+String imageLink;
+boolean DEBUG=false;  //print debug statements
 
 int leadIn=7;
 String[] exercises;
@@ -24,13 +29,13 @@ String mode="lead-in";   //mode can be 'lead-in' or 'period'
 
 void setup()
 {
-  size(500, 500);
+  size(displayWidth, displayHeight);
   String lines[]=loadStrings("workout.txt");
   numberOfExercises=lines.length-1;
   println(numberOfExercises);
   exercises=new String[numberOfExercises];
   timings=new int[numberOfExercises];
-  for (int i=1;i<lines.length;i++)
+  for (int i=1; i<lines.length; i++)
   {
     exercises[i-1]=split(lines[i], ',')[0];
     timings[i-1]=int(trim(split(lines[i], ',')[1]));
@@ -62,12 +67,15 @@ void draw()
   else
     drawClock(count, timings[completeExercises]);
 
+  int imageWidth=width/4;
+  int imageHeight=width/4;  
   if (img!=null)
   {
-    image(img, 0, 0);
-    image(img, width-img.width, 0);
-    image(img, 0, height-img.height);
-    image(img, width-img.width, height-img.height);
+    imageHeight=(img.height/img.width)*imageWidth;
+    image(img, 0, 0, imageWidth, imageHeight);
+    image(img, width-imageWidth, 0, imageWidth, imageHeight);
+    image(img, 0, height-imageHeight, imageWidth, imageHeight);
+    image(img, width-imageWidth, height-imageHeight, imageWidth, imageHeight);
   }
 
 
@@ -87,11 +95,9 @@ void draw()
           mode="period";
           count=timings[completeExercises];
         }
-      }
-      else if (count<=3)
+      } else if (count<=3)
         click();
-    }
-    else if (mode=="period")
+    } else if (mode=="period")
     {
       if (count==0)
       {
@@ -103,8 +109,7 @@ void draw()
           stopWhistle();
           thread("updateImage");
         }
-      }
-      else if (count<=3)
+      } else if (count<=3)
         click();
     }
   }
@@ -154,7 +159,29 @@ void endWhistle()
 
 void updateImage()
 {
-  img=randomGoogleImage(exercises[completeExercises]);
+  int tries=0;
+  int brightness=0;
+  do {
+    if (tries>0)
+    {
+      img = loadImage(imageLink, "jpeg");
+      delay(250);
+    }
+
+    brightness=0;
+    println("searching "+exercises[completeExercises]+" tries:  "+tries);
+    img=randomGoogleImage(exercises[completeExercises]);
+    try {
+      img.updatePixels();
+      for (int x=0; x<img.width; x+=img.width/5)
+        for (int y=0; y<img.height; y+=img.height/5)        
+          brightness+=brightness(img.pixels[y*img.width+x]);
+    }
+    catch(Exception e) {
+    }
+    println(img+" "+img.width+" "+img.height+" brightness: "+brightness);
+    tries++;
+  } while (((img==null)||(brightness==0))&&(tries<3));
 }
 
 //This code is based on Jeff Thompson's Google Image Search URL code, with some fixes for the
@@ -178,15 +205,18 @@ PImage randomGoogleImage(String searchTerm)
   searchTerm = searchTerm.replaceAll(" ", "%20");
 
   // run search as many times as specified
-  println("Retreiving image links (" + fileSize + ")...\n");
+  if (DEBUG)
+    println("Retreiving image links (" + fileSize + ")...\n");
   for (int search=0; search<numSearches; search++) {
 
     // let us know where we're at in the process
-    print("  " + ((search+1)*20) + " / " + (numSearches*20) + ":");
+    if (DEBUG)
+      print("  " + ((search+1)*20) + " / " + (numSearches*20) + ":");
 
     // get Google image search HTML source code; mostly built from PhyloWidget example:
     // http://code.google.com/p/phylowidget/source/browse/trunk/PhyloWidget/src/org/phylowidget/render/images/ImageSearcher.java
-    print(" downloading...");
+    if (DEBUG)
+      print(" downloading...");
     try {
       URL query = new URL("http://images.google.com/images?gbv=1&start=" + offset + "&q=" + searchTerm + "&tbs=isz:lt,islt:" + fileSize);
       HttpURLConnection urlc = (HttpURLConnection) query.openConnection();                                // start connection...
@@ -212,7 +242,8 @@ PImage randomGoogleImage(String searchTerm)
     }
 
     // extract image URLs only, starting with 'imgurl'
-    println(" parsing...");
+    if (DEBUG)
+      println(" parsing...");
     if (source != null) {
       // built partially from: http://www.mkyong.com/regular-expressions/how-to-validate-image-file-extension-with-regular-expression
       String[][] m = matchAll(source, "<img[^>]+src\\s*=\\s*['\"]([^'\"]+)['\"][^>]*>");    // (?i) means case-insensitive
@@ -220,22 +251,22 @@ PImage randomGoogleImage(String searchTerm)
         for (int i=0; i<m.length; i++) {                                                        // iterate all results of the match
           imageLinks = append(imageLinks, m[i][1]);                                             // add links to the array**
         }
-      }
-      else
-        println("no match");
+      } else
+        if (DEBUG)
+          println("no match");
     }
 
     // ** here we get the 2nd item from each match - this is our 'group' containing just the file URL and extension
 
-      // update offset by 20 (limit imposed by Google)
+    // update offset by 20 (limit imposed by Google)
     offset += 20;
   }
 
-  String link=imageLinks[(int)random(imageLinks.length)];
+  imageLink=imageLinks[(int)random(imageLinks.length)];
 
   // run in a 'try' in case we can't connect to an image
   try {
-    img = loadImage(link, "jpeg");
+    img = loadImage(imageLink, "jpeg");
   }
   catch (Exception e) {
     println("    error downloading image, skipping...\n");    // likely a NullPointerException
@@ -243,4 +274,3 @@ PImage randomGoogleImage(String searchTerm)
 
   return img;
 }
-
